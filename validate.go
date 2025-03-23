@@ -28,7 +28,12 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	cleanBody := removeProfanity(params.Body)
+	profanity := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
+	}
+	cleanBody := removeProfanity(params.Body, profanity)
 
 	respBody := Chirpie{
 		CleanedBody: cleanBody,
@@ -60,11 +65,11 @@ func respJSON(w http.ResponseWriter, code int, jsonResp interface{}) {
 	w.Write(data)
 }
 
-func removeProfanity(profaneBody string) string {
+func removeProfanity(profaneBody string, profanity map[string]struct{}) string {
 	words := strings.Split(profaneBody, " ")
 	for i, word := range words {
 		word = strings.ToLower(word)
-		if word == "kerfuffle" || word == "sharbert" || word == "fornax" {
+		if _, ok := profanity[word]; ok {
 			words[i] = "****"
 		}
 	}

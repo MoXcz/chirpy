@@ -30,9 +30,15 @@ func Test_removeProfanity(t *testing.T) {
 			want:        "fornax!",
 		},
 	}
+
+	profanity := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := removeProfanity(tt.profaneBody)
+			got := removeProfanity(tt.profaneBody, profanity)
 			if got != tt.want {
 				t.Errorf("removeProfanity() = %v, want %v", got, tt.want)
 			}
