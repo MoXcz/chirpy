@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
@@ -11,7 +12,7 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 		Body string `json:"body"`
 	}
 	type Chirpie struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -27,8 +28,10 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	cleanBody := removeProfanity(params.Body)
+
 	respBody := Chirpie{
-		Valid: true,
+		CleanedBody: cleanBody,
 	}
 	respJSON(w, 200, respBody)
 }
@@ -55,4 +58,16 @@ func respJSON(w http.ResponseWriter, code int, jsonResp interface{}) {
 		log.Printf("Error marshalling JSON %s\n", err)
 	}
 	w.Write(data)
+}
+
+func removeProfanity(profaneBody string) string {
+	words := strings.Split(profaneBody, " ")
+	for i, word := range words {
+		word = strings.ToLower(word)
+		if word == "kerfuffle" || word == "sharbert" || word == "fornax" {
+			words[i] = "****"
+		}
+	}
+	purifiedBody := strings.Join(words, " ")
+	return purifiedBody
 }
