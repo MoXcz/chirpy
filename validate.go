@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
+func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
@@ -15,7 +15,7 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 		CleanedBody string `json:"cleaned_body"`
 	}
 
-	decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
@@ -53,16 +53,6 @@ func respError(w http.ResponseWriter, code int, err error, msg string) {
 		Error: msg,
 	}
 	respJSON(w, code, errBody)
-}
-
-func respJSON(w http.ResponseWriter, code int, jsonResp interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	data, err := json.Marshal(jsonResp)
-	if err != nil {
-		log.Printf("Error marshalling JSON %s\n", err)
-	}
-	w.Write(data)
 }
 
 func removeProfanity(profaneBody string, profanity map[string]struct{}) string {
