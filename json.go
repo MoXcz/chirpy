@@ -15,3 +15,17 @@ func respJSON(w http.ResponseWriter, code int, jsonResp interface{}) {
 	}
 	w.Write(data)
 }
+
+func respError(w http.ResponseWriter, code int, err error, msg string) {
+	if err != nil {
+		log.Println(err)
+	}
+
+	type errResp struct {
+		Error string `json:"error"`
+	}
+	errBody := errResp{
+		Error: msg,
+	}
+	respJSON(w, code, errBody)
+}
