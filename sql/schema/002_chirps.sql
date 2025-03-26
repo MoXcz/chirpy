@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE chirpy(
+CREATE TABLE chirps(
   id UUID PRIMARY KEY,
   created_at TIMESTAMP NOT NUll,
   updated_at TIMESTAMP NOT NUll,
@@ -8,4 +8,4 @@ CREATE TABLE chirpy(
 );
 
 -- +goose Down
-DROP TABLE chirpy;
+DROP TABLE chirps;

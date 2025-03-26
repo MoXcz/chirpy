@@ -17,7 +17,7 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
-func (cfg *apiConfig) handlerCreateChirpy(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
 		UserId uuid.UUID `json:"user_id"`
@@ -36,16 +36,34 @@ func (cfg *apiConfig) handlerCreateChirpy(w http.ResponseWriter, r *http.Request
 		respError(w, http.StatusBadRequest, err, err.Error())
 	}
 
-	chirpy, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: params.UserId})
+	chirp, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: params.UserId})
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not create chirpy")
 		return
 	}
 	respJSON(w, 201, Chirp{
-		ID:        chirpy.ID,
-		CreatedAt: chirpy.CreatedAt,
-		UpdatedAt: chirpy.UpdatedAt,
-		Body:      chirpy.Body,
-		UserID:    chirpy.UserID,
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
 	})
+}
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	respChirps, err := cfg.db.GetChirps(r.Context())
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Error: Could not get chirps")
+	}
+	chirps := []Chirp{}
+	for _, chirp := range respChirps {
+		chirps = append(chirps, Chirp{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
+		})
+	}
+	respJSON(w, http.StatusOK, chirps)
 }
