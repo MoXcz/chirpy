@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MoXcz/chirpy/internal/auth"
+	"github.com/MoXcz/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -15,9 +17,19 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
+func newUser(id uuid.UUID, created_at, updated_at time.Time, email string) User {
+	return User{
+		ID:        id,
+		CreatdeAt: created_at,
+		UpdatedAt: updated_at,
+		Email:     email,
+	}
+}
+
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -28,17 +40,50 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	retUser, err := cfg.db.CreateUser(r.Context(), params.Email)
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respError(w, http.StatusBadRequest, err, "Error: Could not hash password")
+		return
+	}
+
+	retUser, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+	})
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not create user")
 	}
 
-	user := User{
-		ID:        retUser.ID,
-		CreatdeAt: retUser.CreatedAt,
-		UpdatedAt: retUser.UpdatedAt,
-		Email:     retUser.Email,
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	respJSON(w, http.StatusCreated, user)
+}
+
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
-	respJSON(w, http.StatusCreated, user)
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Error: Could not decode parameters")
+		return
+	}
+
+	retUser, err := cfg.db.GetUserFromEmail(r.Context(), params.Email)
+	if err != nil {
+		respError(w, http.StatusUnauthorized, err, "Incorrect email or password")
+		return
+	}
+
+	err = auth.CheckPasswordHash(retUser.HashedPassword, params.Password)
+	if err != nil {
+		respError(w, http.StatusUnauthorized, err, "Incorrect email or password")
+		return
+	}
+
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	respJSON(w, http.StatusOK, user)
 }
