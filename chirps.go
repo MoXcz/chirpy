@@ -17,6 +17,16 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
+func newChirp(id uuid.UUID, createdAt, updatedAt time.Time, body string, userId uuid.UUID) Chirp {
+	return Chirp{
+		ID:        id,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Body:      body,
+		UserID:    userId,
+	}
+}
+
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
@@ -36,18 +46,15 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		respError(w, http.StatusBadRequest, err, err.Error())
 	}
 
-	chirp, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: params.UserId})
+	respChirp, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: params.UserId})
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not create chirpy")
 		return
 	}
-	respJSON(w, 201, Chirp{
-		ID:        chirp.ID,
-		CreatedAt: chirp.CreatedAt,
-		UpdatedAt: chirp.UpdatedAt,
-		Body:      chirp.Body,
-		UserID:    chirp.UserID,
-	})
+
+	chirp := newChirp(respChirp.ID, respChirp.CreatedAt, respChirp.UpdatedAt, respChirp.Body, respChirp.UserID)
+
+	respJSON(w, 201, chirp)
 }
 
 func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
@@ -56,14 +63,9 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not get chirps")
 	}
 	chirps := []Chirp{}
-	for _, chirp := range respChirps {
-		chirps = append(chirps, Chirp{
-			ID:        chirp.ID,
-			CreatedAt: chirp.CreatedAt,
-			UpdatedAt: chirp.UpdatedAt,
-			Body:      chirp.Body,
-			UserID:    chirp.UserID,
-		})
+	for _, respChirp := range respChirps {
+		chirp := newChirp(respChirp.ID, respChirp.CreatedAt, respChirp.UpdatedAt, respChirp.Body, respChirp.UserID)
+		chirps = append(chirps, chirp)
 	}
 	respJSON(w, http.StatusOK, chirps)
 }
@@ -79,12 +81,7 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not get chirp")
 	}
-	chirp := Chirp{
-		ID:        respChirp.ID,
-		CreatedAt: respChirp.CreatedAt,
-		UpdatedAt: respChirp.UpdatedAt,
-		Body:      respChirp.Body,
-		UserID:    respChirp.UserID,
-	}
+
+	chirp := newChirp(respChirp.ID, respChirp.CreatedAt, respChirp.UpdatedAt, respChirp.Body, respChirp.UserID)
 	respJSON(w, http.StatusOK, chirp)
 }
