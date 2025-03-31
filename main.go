@@ -16,17 +16,22 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	tokenSecret    string
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	tokenSecret := os.Getenv("TOKEN_SECRET")
 	if dbURL == "" {
 		log.Fatalln("DB_URL variable must be defined (use a .env file)")
 	}
 	if platform == "" {
 		log.Fatalln("PLATFORM was not defined")
+	}
+	if tokenSecret == "" {
+		log.Fatalln("TOKEN_SECRET was not defined")
 	}
 
 	dbConnection, err := sql.Open("postgres", dbURL)

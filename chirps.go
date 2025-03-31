@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MoXcz/chirpy/internal/auth"
 	"github.com/MoXcz/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -33,9 +34,21 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		UserId uuid.UUID `json:"user_id"`
 	}
 
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respError(w, http.StatusUnauthorized, err, "Invalid token")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(tokenString, cfg.tokenSecret)
+	if err != nil {
+		respError(w, http.StatusUnauthorized, err, "Invalid token")
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not decode parameters")
 		return
@@ -46,7 +59,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		respError(w, http.StatusBadRequest, err, err.Error())
 	}
 
-	respChirp, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: params.UserId})
+	respChirp, err := cfg.db.CreateChirpy(r.Context(), database.CreateChirpyParams{Body: cleanBody, UserID: userId})
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Error: Could not create chirpy")
 		return

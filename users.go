@@ -15,6 +15,7 @@ type User struct {
 	CreatdeAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func newUser(id uuid.UUID, created_at, updated_at time.Time, email string) User {
@@ -60,8 +61,9 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -84,6 +86,16 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expirationTime := 3600 // 1 hour
+	if params.ExpiresInSeconds != 0 {
+		expirationTime = params.ExpiresInSeconds
+	}
+
 	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	user.Token, err = auth.MakeJWT(user.ID, cfg.tokenSecret, time.Duration(expirationTime))
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Could not create token")
+		return
+	}
 	respJSON(w, http.StatusOK, user)
 }
