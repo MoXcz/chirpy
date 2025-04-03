@@ -60,6 +60,49 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	respJSON(w, http.StatusCreated, user)
 }
 
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respError(w, 401, err, "Invalid Authorization header")
+		return
+	}
+	userId, err := auth.ValidateJWT(accessToken, cfg.tokenSecret)
+	if err != nil {
+		respError(w, 401, err, "Invalid JWT token")
+		return
+	}
+
+	type parameters struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err = decoder.Decode(&params)
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Error: Could not decode parameters")
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respError(w, http.StatusBadRequest, err, "Error: Could not hash password")
+		return
+	}
+	retUser, err := cfg.db.UpdateUserFromId(r.Context(), database.UpdateUserFromIdParams{
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+		ID:             userId,
+	})
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Error: Could not update user")
+	}
+
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	respJSON(w, http.StatusOK, user)
+}
+
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
