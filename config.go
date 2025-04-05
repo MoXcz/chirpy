@@ -19,7 +19,7 @@ type apiConfig struct {
 }
 
 func newConfig() apiConfig {
-	godotenv.Load()
+	godotenv.Load(".env")
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	tokenSecret := os.Getenv("TOKEN_SECRET")

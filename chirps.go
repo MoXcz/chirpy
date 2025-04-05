@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/MoXcz/chirpy/internal/auth"
@@ -86,6 +87,8 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	sortOrder := r.URL.Query().Get("sort")
+
 	chirps := []Chirp{}
 	for _, respChirp := range respChirps {
 		if authorID != uuid.Nil && respChirp.UserID != authorID {
@@ -93,6 +96,15 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		}
 		chirp := newChirp(respChirp.ID, respChirp.CreatedAt, respChirp.UpdatedAt, respChirp.Body, respChirp.UserID)
 		chirps = append(chirps, chirp)
+	}
+
+	// query returns chirps with "asc" order
+	if sortOrder == "desc" {
+		// chirps[i] has to be "newer" than chirps[j] for it to be true, meaning
+		// that "i" comes before "j" -> descending order
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.Compare(chirps[j].CreatedAt) == 1
+		})
 	}
 	respJSON(w, http.StatusOK, chirps)
 }
