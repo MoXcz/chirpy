@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -17,14 +19,16 @@ type User struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
-func newUser(id uuid.UUID, created_at, updated_at time.Time, email string) User {
+func newUser(id uuid.UUID, created_at, updated_at time.Time, email string, isChirpyRed bool) User {
 	return User{
-		ID:        id,
-		CreatdeAt: created_at,
-		UpdatedAt: updated_at,
-		Email:     email,
+		ID:          id,
+		CreatdeAt:   created_at,
+		UpdatedAt:   updated_at,
+		Email:       email,
+		IsChirpyRed: isChirpyRed,
 	}
 }
 
@@ -56,7 +60,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		respError(w, http.StatusInternalServerError, err, "Error: Could not create user")
 	}
 
-	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email, retUser.IsChirpyRed)
 	respJSON(w, http.StatusCreated, user)
 }
 
@@ -99,7 +103,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 		respError(w, http.StatusInternalServerError, err, "Error: Could not update user")
 	}
 
-	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email, retUser.IsChirpyRed)
 	respJSON(w, http.StatusOK, user)
 }
 
@@ -131,7 +135,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	expirationTime := time.Hour
 
-	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email)
+	user := newUser(retUser.ID, retUser.CreatedAt, retUser.UpdatedAt, retUser.Email, retUser.IsChirpyRed)
 	user.Token, err = auth.MakeJWT(user.ID, cfg.tokenSecret, time.Duration(expirationTime))
 	if err != nil {
 		respError(w, http.StatusInternalServerError, err, "Could not create JWT")
@@ -190,5 +194,50 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 		respError(w, http.StatusInternalServerError, err, "Invalid token")
 		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (cfg *apiConfig) handlerUpgrade(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respError(w, 401, err, "Missing API key in Authorization header")
+		return
+	}
+
+	if apiKey != cfg.apiKey {
+		respError(w, 401, err, "Missing API key in Authorization header")
+		return
+	}
+
+	type parameters struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserId uuid.UUID `json:"user_id"`
+		} `json:"data"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err = decoder.Decode(&params)
+	if err != nil {
+		respError(w, http.StatusInternalServerError, err, "Error: Could not decode parameters")
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	_, err = cfg.db.UpgradeUser(r.Context(), params.Data.UserId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respError(w, http.StatusNotFound, err, "Error: Could not find user")
+			return
+		}
+		respError(w, http.StatusNotFound, err, "Error: Could not upgrade user")
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

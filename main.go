@@ -17,6 +17,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	tokenSecret    string
+	apiKey         string
 }
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	tokenSecret := os.Getenv("TOKEN_SECRET")
+	apiKey := os.Getenv("POLKA_KEY")
 	if dbURL == "" {
 		log.Fatalln("DB_URL variable must be defined (use a .env file)")
 	}
@@ -32,6 +34,9 @@ func main() {
 	}
 	if tokenSecret == "" {
 		log.Fatalln("TOKEN_SECRET was not defined")
+	}
+	if apiKey == "" {
+		log.Fatalln("POLAK_KEY was not defined")
 	}
 
 	dbConnection, err := sql.Open("postgres", dbURL)
@@ -42,7 +47,7 @@ func main() {
 
 	const port = "8080"
 	const filepathRoot = "."
-	apiCfg := apiConfig{fileserverHits: atomic.Int32{}, db: dbQueries, platform: platform}
+	apiCfg := apiConfig{fileserverHits: atomic.Int32{}, db: dbQueries, platform: platform, tokenSecret: tokenSecret, apiKey: apiKey}
 
 	mux := http.NewServeMux()
 
@@ -53,6 +58,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+
 	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
 	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
 
@@ -63,6 +69,8 @@ func main() {
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerUpgrade)
 
 	srv := http.Server{
 		Handler: mux,

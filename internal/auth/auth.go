@@ -74,17 +74,17 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
-	bearerToken := headers.Get("Authorization")
-	if bearerToken == "" {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
 		return "", errors.New("No Authorization value")
 	}
 
-	splitBearerToken := strings.Fields(bearerToken)
-	if len(splitBearerToken) != 2 || splitBearerToken[0] != "Bearer" { // expects "Bearer TOKEN_STRING" as value
+	splitAuthHeader := strings.Fields(authHeader)
+	if len(splitAuthHeader) != 2 || splitAuthHeader[0] != "Bearer" { // expects "Bearer TOKEN_STRING" as value
 		return "", errors.New("Invalid header value")
 	}
 
-	tokenString := splitBearerToken[1]
+	tokenString := splitAuthHeader[1]
 	return tokenString, nil
 }
 
@@ -95,4 +95,19 @@ func MakeRefreshToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(token), nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("No Authorization value")
+	}
+
+	splitAuthHeader := strings.Fields(authHeader)
+	if len(splitAuthHeader) != 2 || splitAuthHeader[0] != "ApiKey" { // expects "ApiKey KEY" as value
+		return "", errors.New("Invalid header value")
+	}
+
+	apiKey := splitAuthHeader[1]
+	return apiKey, nil
 }
