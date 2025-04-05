@@ -88,6 +88,7 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return tokenString, nil
 }
 
+// Token used to refresh JWT
 func MakeRefreshToken() (string, error) {
 	token := make([]byte, 32)
 	_, err := rand.Read(token)
